@@ -222,6 +222,32 @@ void reset_handler(void)
 	main();
 }
 
+// ---------------- just in case the  C lib version doesn't seem to work, do it here ----------------------
+/*extern void (*__init_array_start []) (void) __attribute__((weak));
+extern void (*__init_array_end []) (void) __attribute__((weak));
+extern void (*__preinit_array_start []) (void) __attribute__((weak));
+extern void (*__preinit_array_end []) (void) __attribute__((weak));
+extern void _init (void);
+
+
+__libc_init_array(void)
+{
+	int count;
+	int i;
+
+	count = __preinit_array_end - __preinit_array_start;
+	for (i = 0; i < count; i++)
+		__preinit_array_start[i] ();
+
+	_init();
+
+	count = __init_array_end - __init_array_start;
+	for (i = 0; i < count; i++)
+		__init_array_start[i] ();
+}*/
+
+// --------------------------------------------------------------------------------------------------------
+
 void blocking_handler(void)
 {
 	while (1) ;

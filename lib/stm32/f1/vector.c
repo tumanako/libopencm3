@@ -22,7 +22,6 @@
 /* Symbols exported by the linker script(s). */
 extern unsigned _etext, _data, _edata, _ebss, _stack;
 
-void main(void);
 void reset_handler(void);
 void blocking_handler(void);
 void null_handler(void);
@@ -32,9 +31,9 @@ void WEAK hard_fault_handler(void);
 void WEAK mem_manage_handler(void);
 void WEAK bus_fault_handler(void);
 void WEAK usage_fault_handler(void);
-void WEAK sv_call_handler(void);
+void WEAK SVC_Handler(void);
 void WEAK debug_monitor_handler(void);
-void WEAK pend_sv_handler(void);
+void WEAK PendSV_Handler(void);
 void WEAK sys_tick_handler(void);
 void WEAK wwdg_isr(void);
 void WEAK pvd_isr(void);
@@ -116,10 +115,10 @@ void (*const vector_table[]) (void) = {
 	bus_fault_handler,	/* Addr: 0x0000_0014 */
 	usage_fault_handler,	/* Addr: 0x0000_0018 */
 	0, 0, 0, 0,		/* Reserved Addr: 0x0000_001C - 0x0000_002B */
-	sv_call_handler,	/* Addr: 0x0000_002C */
+	SVC_Handler,		/* Addr: 0x0000_002C */
 	debug_monitor_handler,	/* Addr: 0x0000_0030*/
 	0,			/* Reserved Addr: 0x0000_00034 */
-	pend_sv_handler,	/* Addr: 0x0000_0038 */
+	PendSV_Handler,		/* Addr: 0x0000_0038 */
 	sys_tick_handler,	/* Addr: 0x0000_003C */
 	wwdg_isr,		/* Addr: 0x0000_0040 */
 	pvd_isr,		/* Addr: 0x0000_0044 */
@@ -191,17 +190,33 @@ void (*const vector_table[]) (void) = {
 	otg_fs_isr,		/* Addr: 0x0000_014C */
 };
 
+void reset_handler(void) __attribute__((__interrupt__));
 void reset_handler(void)
 {
-	volatile unsigned *src, *dest;
+	extern int main(void);
+	extern int __libc_init_array(void);
+	extern unsigned __data_start;    /* start of .data in the linker script */
+	extern unsigned __data_end__;      /* end of .data in the linker script */
+	extern unsigned const __data_load;  /* initialization values for .data  */
+	extern unsigned __bss_start__;    /* start of .bss in the linker script */
+	extern unsigned __bss_end__;        /* end of .bss in the linker script */
+	unsigned const *src;
+	unsigned *dst;
 
 	__asm__("MSR msp, %0" : : "r"(&_stack));
 
-	for (src = &_etext, dest = &_data; dest < &_edata; src++, dest++)
-		*dest = *src;
+	/* copy the data segment initializers from flash to RAM... */
+	src = &__data_load;
+	for (dst = &__data_start; dst < &__data_end__; ++dst, ++src) {
+		*dst = *src;
+	}
 
-	while (dest < &_ebss)
-		*dest++ = 0;
+	/* zero fill the .bss segment... */
+	for (dst = &__bss_start__; dst < &__bss_end__; ++dst) {
+		*dst = 0;
+	}
+	/* call all static constructors in C++ (harmless in C programs) */
+	__libc_init_array();
 
 	/* Call the application's entry point. */
 	main();
@@ -222,9 +237,9 @@ void null_handler(void)
 #pragma weak mem_manage_handler = blocking_handler
 #pragma weak bus_fault_handler = blocking_handler
 #pragma weak usage_fault_handler = blocking_handler
-#pragma weak sv_call_handler = null_handler
+#pragma weak SVC_Handler = null_handler
 #pragma weak debug_monitor_handler = null_handler
-#pragma weak pend_sv_handler = null_handler
+#pragma weak PendSV_Handler = null_handler
 #pragma weak sys_tick_handler = null_handler
 #pragma weak wwdg_isr = null_handler
 #pragma weak pvd_isr = null_handler

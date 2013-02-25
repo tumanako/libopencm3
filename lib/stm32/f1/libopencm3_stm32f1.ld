@@ -27,35 +27,93 @@ EXTERN (vector_table)
 /* Define the entry point of the output file. */
 ENTRY(reset_handler)
 
+/* The size of the stack used by the application. NOTE: you need to adjust  */
+STACK_SIZE = 4096;
+
+/* The size of the heap used by the application. NOTE: you need to adjust   */
+HEAP_SIZE = 0;
+
 /* Define sections. */
 SECTIONS
 {
-	. = ORIGIN(rom);
 
-	.text : {
-		*(.vectors)	/* Vector table */
-		*(.text*)	/* Program code */
+	.text : {                                         /* code and constants */
 		. = ALIGN(4);
-		*(.rodata*)	/* Read-only data */
+		*(.vectors)		/* Vector table */
+		*(.text)                                   /* .text sections (code) */
+		*(.text*)                                 /* .text* sections (code) */
+		*(.rodata)           /* .rodata sections (constants, strings, etc.) */
+		*(.rodata*)         /* .rodata* sections (constants, strings, etc.) */
+
+		KEEP (*(.init))
+		KEEP (*(.fini))
+
 		. = ALIGN(4);
-		_etext = .;
+		_etext = .;                        /* global symbols at end of code */
 	} >rom
 
-	. = ORIGIN(ram);
+	.preinit_array : {
+		PROVIDE_HIDDEN (__preinit_array_start = .);
+		KEEP (*(.preinit_array*))
+		PROVIDE_HIDDEN (__preinit_array_end = .);
+	} >rom
 
-	.data : AT(_etext) {
+	.init_array : {
+		PROVIDE_HIDDEN (__init_array_start = .);
+		KEEP (*(SORT(.init_array.*)))
+		KEEP (*(.init_array*))
+		PROVIDE_HIDDEN (__init_array_end = .);
+	} >rom
+
+	.fini_array : {
+		PROVIDE_HIDDEN (__fini_array_start = .);
+		KEEP (*(.fini_array*))
+		KEEP (*(SORT(.fini_array.*)))
+		PROVIDE_HIDDEN (__fini_array_end = .);
+	} >rom
+
+
+	.data : {
+		__data_load = LOADADDR (.data);
+		__data_start = .;
 		_data = .;
-		*(.data*)	/* Read-write initialized data */
+		*(.data)                                          /* .data sections */
+		*(.data*)                                        /* .data* sections */
 		. = ALIGN(4);
-		_edata = .;
-	} >ram
+		__data_end__ = .;
+		_edata = __data_end__;
+	} >ram AT>rom
 
 	.bss : {
-		*(.bss*)	/* Read-write zero initialized data */
+		__bss_start__ = . ;
+		*(.bss)
+		*(.bss*)
 		*(COMMON)
 		. = ALIGN(4);
-		_ebss = .;
-	} >ram AT >rom
+		_ebss = .;                     /* define a global symbol at bss end */
+		__bss_end__ = .;
+	} >ram
+
+	PROVIDE ( end = _ebss );
+	PROVIDE ( _end = _ebss );
+	PROVIDE ( __end__ = _ebss );
+
+	.heap : {
+		__heap_start__ = . ;
+		. = . + HEAP_SIZE;
+		. = ALIGN(4);
+		__heap_end__ = . ;
+	} >ram
+
+	.stack : {
+		__stack_start__ = . ;
+		. = . + STACK_SIZE;
+		. = ALIGN(4);
+		__c_stack_top__ = . ;
+		__stack_end__ = . ;
+	} >ram
+
+	PROVIDE(_stack = __stack_end__ );
 
 	/*
 	 * The .eh_frame section appears to be used for C++ exception handling.
@@ -64,14 +122,17 @@ SECTIONS
 	/DISCARD/ : { *(.eh_frame) }
 
 	/*
-	 * Another section used by C++ stuff, appears when using newlib with
-	 * 64bit (long long) printf support - discard it for now.
+	 * Another section used by C++ stuff, used for C++ exception handling ..
 	 */
 	/DISCARD/ : { *(.ARM.exidx) }
 
-	. = ALIGN(4);
-	end = .;
+	/* Remove information from the standard libraries */
+	/DISCARD/ : {
+		*(.note.GNU-stack)
+		libc.a ( * )
+		libm.a ( * )
+		libgcc.a ( * )
+	}
 }
 
-PROVIDE(_stack = ORIGIN(ram) + LENGTH(ram));
 

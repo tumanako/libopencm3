@@ -535,6 +535,8 @@
 #define RCC_CFGR2_PREDIV2_DIV15			0xe
 #define RCC_CFGR2_PREDIV2_DIV16			0xf
 
+#include <stdint.h>
+
 /* --- Variable definitions ------------------------------------------------ */
 extern uint32_t rcc_ahb_frequency;
 extern uint32_t rcc_apb1_frequency;

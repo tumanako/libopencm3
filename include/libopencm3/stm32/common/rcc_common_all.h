@@ -36,6 +36,8 @@
 
 /**@{*/
 
+#include "libopencm3/cm3/common.h"
+
 BEGIN_DECLS
 
 void rcc_peripheral_enable_clock(volatile uint32_t *reg, uint32_t en);
